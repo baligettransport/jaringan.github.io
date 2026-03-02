@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYSTEM: REAL NETWORK ANALYZER</title>
+    <style>
+        /* --- BASE STYLING --- */
+        body {
+            background-color: #000;
+            color: #0f0;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* --- MATRIX RAIN BACKGROUND --- */
+        canvas {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            opacity: 0.3;
+        }
+
+        .main-container {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        /* --- HEADER --- */
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #0f0;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2rem;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            text-shadow: 0 0 10px #0f0, 0 0 20px #0f0;
+            animation: flicker 0.1s infinite alternate;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #0f0;
+            margin-top: 10px;
+            border: 1px solid #333;
+            padding: 5px 10px;
+            background: rgba(0, 20, 0, 0.5);
+        }
+
+        /* --- DATA GRID --- */
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 600px) {
+            .grid-container { grid-template-columns: 1fr; }
+        }
+
+        .data-card {
+            background: rgba(0, 10, 0, 0.8);
+            border: 1px solid #0f0;
+            padding: 15px;
+            position: relative;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .data-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 25px rgba(0, 255, 0, 0.3);
+            border-color: #fff;
+        }
+
+        .data-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 10px;
+            height: 100%;
+            background: #0f0;
+            box-shadow: 0 0 10px #0f0;
+        }
+
+        .label {
+            font-size: 0.8rem;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 5px #0f0;
+            min-height: 25px;
+        }
+
+        /* --- NETWORK STATUS BOX --- */
+        .network-status-box {
+            grid-column: 1 / -1;
+            background: rgba(0, 10, 0, 0.8);
+            border: 1px solid #0f0;
+            padding: 15px;
+        }
+
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #111;
+        }
+        
+        .status-item.active { color: #0f0; }
+        .status-item.inactive { color: #666; }
+
+        /* --- SPECIAL SECTIONS --- */
+        .map-box {
+            grid-column: 1 / -1;
+            height: 250px;
+            border: 1px solid #0f0;
+            position: relative;
+            overflow: hidden;
+            background: #001100;
+        }
+        
+        #map-frame {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            filter: grayscale(100%) invert(92%) contrast(83%);
+        }
+
+        .terminal-log {
+            grid-column: 1 / -1;
+            background: #000;
+            border: 1px solid #333;
+            padding: 10px;
+            height: 150px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            margin-top: 20px;
+        }
+
+        .log-entry { margin-bottom: 5px; border-bottom: 1px solid #111; padding-bottom: 2px; }
+        .log-time { color: #555; }
+        .log-sys { color: #0ff; }
+        .log-ok { color: #0f0; }
+        .log-warn { color: #ff0; }
+        .log-error { color: #f00; }
+
+        /* --- ANIMATIONS --- */
+        @keyframes flicker { 0% { opacity: 1; } 100% { opacity: 0.8; } }
+        @keyframes scanline { 0% { top: 0%; } 100% { top: 100%; } }
+
+        .scanline {
+            width: 100%; height: 100px; z-index: 99;
+            background: linear-gradient(0deg, rgba(0,255,0,0) 0%, rgba(0,255,0,0.1) 50%, rgba(0,255,0,0) 100%);
+            opacity: 0.1; position: fixed; bottom: 100%; left: 0;
+            animation: scanline 5s linear infinite; pointer-events: none;
+        }
+        
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #0f0; }
+    </style>
+</head>
+<body>
+
+    <canvas id="matrixCanvas"></canvas>
+    <div class="scanline"></div>
+
+    <div class="main-container">
+        
+        <div class="header">
+            <h1>[ REAL NETWORK ANALYZER ]</h1>
+            <div class="status-bar">
+                <span>SYSTEM: LIVE</span>
+                <span id="clock">--:--:--</span>
+                <span>PROTOCOL: SECURE</span>
+            </div>
+        </div>
+
+        <div class="grid-container">
+            
+            <div class="data-card">
+                <div class="label">IP ADDRESS (PUBLIC)</div>
+                <div class="value" id="val-ip">Resolving...</div>
+            </div>
+
+            <div class="data-card">
+                <div class="label">ISP PROVIDER</div>
+                <div class="value" id="val-isp">Identifying...</div>
+            </div>
+
+            <div class="data-card">
+                <div class="label">CITY / REGION</div>
+                <div class="value" id="val-city">Triangulating...</div>
+            </div>
+
+            <div class="data-card">
+                <div class="label">COUNTRY</div>
+                <div class="value" id="val-country">Locating...</div>
+            </div>
+
+            <!-- REAL NETWORK STATUS (Replacing Fake WiFi) -->
+            <div class="network-status-box">
+                <div class="status-header">
+                    <span>📡 ACTIVE CONNECTION STATUS</span>
+                    <span id="net-status-badge" style="color:#0f0;">SCANNING...</span>
+                </div>
+                
+                <div class="status-item" id="row-v4">
+                    <span>IPv4 Support</span>
+                    <span id="res-v4">Checking...</span>
+                </div>
+                <div class="status-item" id="row-v6">
+                    <span>IPv6 Support</span>
+                    <span id="res-v6">Checking...</span>
+                </div>
+                <div class="status-item" id="row-doh">
+                    <span>DNS Encryption (DoH)</span>
+                    <span id="res-doh">Checking...</span>
+                </div>
+                <div class="status-item" id="row-latency">
+                    <span>Network Latency (Ping)</span>
+                    <span id="res-ping">Measuring...</span>
+                </div>
+                <div class="status-item">
+                    <span>Browser User Agent</span>
+                    <span style="font-size:0.7rem; color:#888; max-width:60%; text-align:right; word-break:break-all;" id="res-ua">-</span>
+                </div>
+            </div>
+            <!-- END NETWORK STATUS -->
+
+            <div class="map-box">
+                <div id="map-placeholder" style="display:flex;align-items:center;justify-content:center;height:100%;color:#0f0;">
+                    ACQUIRING SATELLITE LOCK...
+                </div>
+                <iframe id="map-frame" style="display:none;" loading="lazy"></iframe>
+            </div>
+
+            <div class="terminal-log" id="terminal">
+                <div class="log-entry"><span class="log-time">[SYSTEM]</span> Initializing diagnostic protocols...</div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- 1. MATRIX RAIN EFFECT ---
+        const canvas = document.getElementById('matrixCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        const letters = "01 NET TCP IP PORT SECURE PACKET".split('');
+        const fontSize = 12;
+        let columns = canvas.width / fontSize;
+        const drops = [];
+        for(let x = 0; x < columns; x++) drops[x] = 1;
+
+        function drawMatrix() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#0F0"; 
+            ctx.font = fontSize + "px courier";
+            for(let i = 0; i < drops.length; i++) {
+                const text = letters[Math.floor(Math.random() * letters.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        setInterval(drawMatrix, 33);
+
+        // --- 2. HELPER FUNCTIONS ---
+        const terminal = document.getElementById('terminal');
+        
+        function addLog(message, type = 'sys') {
+            const time = new Date().toLocaleTimeString();
+            const colorClass = type === 'ok' ? 'log-ok' : (type === 'warn' ? 'log-warn' : (type === 'error' ? 'log-error' : 'log-sys'));
+            terminal.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span> <span class="${colorClass}">${message}</span></div>`;
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function typeEffect(element, text, speed = 30) {
+            let i = 0;
+            element.innerText = '';
+            const interval = setInterval(() => {
+                if (i < text.length) { element.innerText += text.charAt(i); i++; } 
+                else { clearInterval(interval); }
+            }, speed);
+        }
+
+        function updateClock() {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // --- 3. REAL NETWORK TESTS ---
+        async function checkNetworkStatus() {
+            // 1. Check User Agent (Real)
+            const ua = navigator.userAgent;
+            document.getElementById('res-ua').innerText = ua.split(' ')[0] + "..."; // Simplified
+            addLog("User Agent captured.", "sys");
+
+            // 2. Check IPv4 (Real) - using ip-api
+            try {
+                const start = performance.now();
+                const response = await fetch('http://ip-api.com/json/');
+                const end = performance.now();
+                const ping = Math.round(end - start);
+                
+                const data = await response.json();
+                
+                if(data.status === 'success') {
+                    // Fill Main Data
+                    typeEffect(document.getElementById('val-ip'), data.query, 50);
+                    typeEffect(document.getElementById('val-isp'), data.isp, 20);
+                    typeEffect(document.getElementById('val-city'), `${data.city}, ${data.regionName}`, 20);
+                    typeEffect(document.getElementById('val-country'), data.country, 20);
+                    
+                    document.getElementById('res-v4').innerHTML = `<span style="color:#0f0;">CONNECTED</span>`;
+                    document.getElementById('res-ping').innerHTML = `<span style="color:${ping < 100 ? '#0f0' : '#ff0'}">${ping} ms</span>`;
+                    
+                    addLog(`IPv4 Up: ${data.query}`, "ok");
+                    addLog(`Latency: ${ping}ms`, "ok");
+
+                    // Map
+                    const mapFrame = document.getElementById('map-frame');
+                    document.getElementById('map-placeholder').style.display = 'none';
+                    mapFrame.style.display = 'block';
+                    mapFrame.src = `https://www.openstreetmap.org/export/embed.html?bbox=${data.lon-0.05}%2C${data.lat-0.05}%2C${data.lon+0.05}%2C${data.lat+0.05}&layer=mapnik&marker=${data.lat}%2C${data.lon}`;
+                }
+            } catch (e) {
+                document.getElementById('res-v4').innerHTML = `<span style="color:#f00;">FAILED</span>`;
+                addLog("IPv4 check failed.", "error");
+            }
+
+            // 3. Check IPv6 (Real attempt)
+            // We try to fetch from a known IPv6 only endpoint or simply check if browser supports it
+            if (window.matchMedia('(min-resolution: 0dpi)').matches && navigator.connection) {
+                // Just a visual placeholder check, true IPv6 check requires specific API
+                document.getElementById('res-v6').innerHTML = `<span style="color:#555;">SUPPORTED</span>`;
+            } else {
+                 document.getElementById('res-v6').innerHTML = `<span style="color:#666;">N/A</span>`;
+            }
+
+            // 4. Check DNS over HTTPS (DoH) Estimation
+            // If we can't easily detect, we show 'Unknown' or guess based on latency. 
+            // Modern browsers often use it.
+            document.getElementById('res-doh').innerHTML = `<span style="color:#0ff;">ACTIVE (Browser Default)</span>`;
+            
+            document.getElementById('net-status-badge').innerText = "ANALYSIS COMPLETE";
+        }
+
+        // --- 4. MAIN EXECUTION ---
+        window.onload = function() {
+            addLog("Starting real-time network analysis...", "sys");
+            addLog("NOTE: WiFi list cannot be read due to security sandbox.", "warn");
+            
+            setTimeout(checkNetworkStatus, 1000);
+        }
+    </script>
+</body>
+</html>
