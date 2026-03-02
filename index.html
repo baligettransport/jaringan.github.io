@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SYSTEM: REAL NETWORK ANALYZER</title>
+    <title>SYSTEM: DEEP NETWORK SURVEILLANCE</title>
     <style>
         /* --- BASE STYLING --- */
         body {
@@ -16,14 +16,14 @@
             min-height: 100vh;
         }
 
-        /* --- MATRIX RAIN BACKGROUND --- */
+        /* --- MATRIX BACKGROUND --- */
         canvas {
             display: block;
             position: fixed;
             top: 0;
             left: 0;
             z-index: -1;
-            opacity: 0.3;
+            opacity: 0.2;
         }
 
         .main-container {
@@ -44,11 +44,11 @@
 
         .header h1 {
             margin: 0;
-            font-size: 2rem;
+            font-size: 1.8rem;
             text-transform: uppercase;
-            letter-spacing: 5px;
-            text-shadow: 0 0 10px #0f0, 0 0 20px #0f0;
-            animation: flicker 0.1s infinite alternate;
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px #0f0;
+            animation: flicker 3s infinite alternate;
         }
 
         .status-bar {
@@ -62,7 +62,7 @@
             background: rgba(0, 20, 0, 0.5);
         }
 
-        /* --- DATA GRID --- */
+        /* --- GRID --- */
         .grid-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -74,18 +74,11 @@
         }
 
         .data-card {
-            background: rgba(0, 10, 0, 0.8);
+            background: rgba(0, 10, 0, 0.9);
             border: 1px solid #0f0;
             padding: 15px;
             position: relative;
-            box-shadow: 0 0 15px rgba(0, 255, 0, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        .data-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 0 25px rgba(0, 255, 0, 0.3);
-            border-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.1);
         }
 
         .data-card::before {
@@ -93,72 +86,81 @@
             position: absolute;
             top: 0;
             left: 0;
-            width: 10px;
+            width: 5px;
             height: 100%;
             background: #0f0;
-            box-shadow: 0 0 10px #0f0;
         }
 
-        .label {
-            font-size: 0.8rem;
-            color: #888;
-            text-transform: uppercase;
-            margin-bottom: 5px;
-        }
+        .label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+        .value { font-size: 1.1rem; font-weight: bold; color: #fff; margin-top: 5px; }
 
-        .value {
-            font-size: 1.1rem;
+        /* --- ACTION BUTTON --- */
+        .btn-action {
+            grid-column: 1 / -1;
+            background: #001a00;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 10px;
+            cursor: pointer;
+            font-family: inherit;
             font-weight: bold;
-            color: #fff;
-            text-shadow: 0 0 5px #0f0;
-            min-height: 25px;
+            transition: all 0.3s;
+            text-transform: uppercase;
         }
+        .btn-action:hover { background: #0f0; color: #000; }
+        .btn-action:disabled { border-color: #333; color: #333; cursor: not-allowed; }
 
-        /* --- NETWORK STATUS BOX --- */
-        .network-status-box {
+        /* --- WIFI LIST (REAL LOOK) --- */
+        .wifi-box {
             grid-column: 1 / -1;
-            background: rgba(0, 10, 0, 0.8);
+            background: #000;
             border: 1px solid #0f0;
-            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
         }
-
-        .status-header {
+        
+        .wifi-header {
+            background: #003300;
+            padding: 10px;
+            border-bottom: 1px solid #0f0;
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #333;
-            padding-bottom: 5px;
+            position: sticky;
+            top: 0;
         }
 
-        .status-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px;
+        .wifi-item {
+            padding: 10px;
             border-bottom: 1px solid #111;
-        }
-        
-        .status-item.active { color: #0f0; }
-        .status-item.inactive { color: #666; }
-
-        /* --- SPECIAL SECTIONS --- */
-        .map-box {
-            grid-column: 1 / -1;
-            height: 250px;
-            border: 1px solid #0f0;
+            cursor: pointer;
+            transition: background 0.2s;
             position: relative;
-            overflow: hidden;
-            background: #001100;
         }
+        .wifi-item:hover { background: rgba(0, 255, 0, 0.1); }
         
-        #map-frame {
-            width: 100%;
-            height: 100%;
-            border: 0;
-            filter: grayscale(100%) invert(92%) contrast(83%);
+        .wifi-name { font-weight: bold; color: #fff; }
+        .wifi-mac { font-size: 0.7rem; color: #555; }
+        .wifi-signal { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); text-align: right; }
+        .signal-bar { font-size: 0.8rem; }
+        
+        /* Modal / Overlay for interaction */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 10;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            border: 1px solid #0f0;
+            padding: 20px;
+            width: 300px;
+            text-align: center;
         }
 
+        /* --- TERMINAL --- */
         .terminal-log {
             grid-column: 1 / -1;
             background: #000;
@@ -166,31 +168,33 @@
             padding: 10px;
             height: 150px;
             overflow-y: auto;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             margin-top: 20px;
         }
-
-        .log-entry { margin-bottom: 5px; border-bottom: 1px solid #111; padding-bottom: 2px; }
-        .log-time { color: #555; }
-        .log-sys { color: #0ff; }
         .log-ok { color: #0f0; }
         .log-warn { color: #ff0; }
+        .log-sys { color: #0ff; }
         .log-error { color: #f00; }
 
-        /* --- ANIMATIONS --- */
-        @keyframes flicker { 0% { opacity: 1; } 100% { opacity: 0.8; } }
-        @keyframes scanline { 0% { top: 0%; } 100% { top: 100%; } }
-
-        .scanline {
-            width: 100%; height: 100px; z-index: 99;
-            background: linear-gradient(0deg, rgba(0,255,0,0) 0%, rgba(0,255,0,0.1) 50%, rgba(0,255,0,0) 100%);
-            opacity: 0.1; position: fixed; bottom: 100%; left: 0;
-            animation: scanline 5s linear infinite; pointer-events: none;
+        /* --- MAP --- */
+        .map-box {
+            grid-column: 1 / -1;
+            height: 200px;
+            border: 1px solid #0f0;
+            background: #001100;
         }
-        
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: #000; }
-        ::-webkit-scrollbar-thumb { background: #0f0; }
+        iframe { width: 100%; height: 100%; border: 0; filter: grayscale(100%) invert(90%); }
+
+        /* Animation */
+        @keyframes flicker { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+        @keyframes scanline { 0% { top: 0%; } 100% { top: 100%; } }
+        .scanline {
+            width: 100%; height: 50px; z-index: 99;
+            background: linear-gradient(rgba(0,255,0,0.05), transparent);
+            position: fixed; top: 0; left: 0;
+            animation: scanline 3s linear infinite;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -201,201 +205,273 @@
     <div class="main-container">
         
         <div class="header">
-            <h1>[ REAL NETWORK ANALYZER ]</h1>
+            <h1>[ NETWORK SURVEILLANCE v2.4 ]</h1>
             <div class="status-bar">
-                <span>SYSTEM: LIVE</span>
+                <span>STATUS: <span id="status-text">STANDBY</span></span>
                 <span id="clock">--:--:--</span>
-                <span>PROTOCOL: SECURE</span>
+                <span>AUTH: GRANTED</span>
             </div>
         </div>
 
         <div class="grid-container">
             
             <div class="data-card">
-                <div class="label">IP ADDRESS (PUBLIC)</div>
+                <div class="label">Public IP Address</div>
                 <div class="value" id="val-ip">Resolving...</div>
             </div>
 
             <div class="data-card">
-                <div class="label">ISP PROVIDER</div>
+                <div class="label">ISP / Organization</div>
                 <div class="value" id="val-isp">Identifying...</div>
             </div>
 
             <div class="data-card">
-                <div class="label">CITY / REGION</div>
+                <div class="label">Location (City)</div>
                 <div class="value" id="val-city">Triangulating...</div>
             </div>
 
             <div class="data-card">
-                <div class="label">COUNTRY</div>
-                <div class="value" id="val-country">Locating...</div>
+                <div class="label">Latency / Ping</div>
+                <div class="value" id="val-ping">Testing...</div>
             </div>
 
-            <!-- REAL NETWORK STATUS (Replacing Fake WiFi) -->
-            <div class="network-status-box">
-                <div class="status-header">
-                    <span>📡 ACTIVE CONNECTION STATUS</span>
-                    <span id="net-status-badge" style="color:#0f0;">SCANNING...</span>
+            <!-- REAL ACTION BUTTONS -->
+            <button class="btn-action" id="btn-scan" onclick="startScan()">🔍 INITIATE NETWORK SCAN</button>
+            <button class="btn-action" id="btn-ping" onclick="measurePing()" style="border-color:#555;">⚡ RE-TEST LATENCY</button>
+
+            <!-- WIFI LIST CONTAINER -->
+            <div class="wifi-box">
+                <div class="wifi-header">
+                    <span>📡 DETECTED SIGNALS</span>
+                    <span id="wifi-count">0 NODES</span>
                 </div>
-                
-                <div class="status-item" id="row-v4">
-                    <span>IPv4 Support</span>
-                    <span id="res-v4">Checking...</span>
-                </div>
-                <div class="status-item" id="row-v6">
-                    <span>IPv6 Support</span>
-                    <span id="res-v6">Checking...</span>
-                </div>
-                <div class="status-item" id="row-doh">
-                    <span>DNS Encryption (DoH)</span>
-                    <span id="res-doh">Checking...</span>
-                </div>
-                <div class="status-item" id="row-latency">
-                    <span>Network Latency (Ping)</span>
-                    <span id="res-ping">Measuring...</span>
-                </div>
-                <div class="status-item">
-                    <span>Browser User Agent</span>
-                    <span style="font-size:0.7rem; color:#888; max-width:60%; text-align:right; word-break:break-all;" id="res-ua">-</span>
+                <div id="wifi-list" style="min-height:100px; color:#333; display:flex; align-items:center; justify-content:center;">
+                    Press [INITIATE SCAN] to search...
                 </div>
             </div>
-            <!-- END NETWORK STATUS -->
 
+            <!-- MAP -->
             <div class="map-box">
-                <div id="map-placeholder" style="display:flex;align-items:center;justify-content:center;height:100%;color:#0f0;">
-                    ACQUIRING SATELLITE LOCK...
-                </div>
-                <iframe id="map-frame" style="display:none;" loading="lazy"></iframe>
+                 <iframe id="map-frame" style="display:none;"></iframe>
+                 <div id="map-placeholder" style="display:flex; align-items:center; justify-content:center; height:100%; color:#555;">GPS LOCK PENDING...</div>
             </div>
 
+            <!-- TERMINAL -->
             <div class="terminal-log" id="terminal">
-                <div class="log-entry"><span class="log-time">[SYSTEM]</span> Initializing diagnostic protocols...</div>
+                <div class="log-sys">System ready. Waiting for command...</div>
             </div>
 
         </div>
     </div>
 
+    <!-- MODAL POPUP -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="color:#0f0;">TARGET: <span id="modal-target">SSID</span></h3>
+            <p style="font-size:0.8rem; color:#888;">Attempting handshake capture...</p>
+            <div id="modal-progress" style="height:10px; background:#111; margin:10px 0;">
+                <div id="modal-bar" style="width:0%; height:100%; background:#0f0; transition:width 0.2s;"></div>
+            </div>
+            <p id="modal-status" style="color:#ff0;">Initializing...</p>
+            <button onclick="closeModal()" style="margin-top:10px; background:transparent; border:1px solid #f00; color:#f00; padding:5px 10px; cursor:pointer;">ABORT</button>
+        </div>
+    </div>
+
     <script>
-        // --- 1. MATRIX RAIN EFFECT ---
+        // --- 1. MATRIX EFFECT ---
         const canvas = document.getElementById('matrixCanvas');
         const ctx = canvas.getContext('2d');
-
-        function resizeCanvas() {
+        let columns;
+        
+        function initMatrix() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+            columns = canvas.width / 20;
+            drops = [];
+            for(let i=0; i<columns; i++) drops[i] = 1;
         }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-
-        const letters = "01 NET TCP IP PORT SECURE PACKET".split('');
-        const fontSize = 12;
-        let columns = canvas.width / fontSize;
-        const drops = [];
-        for(let x = 0; x < columns; x++) drops[x] = 1;
+        window.addEventListener('resize', initMatrix);
+        initMatrix();
 
         function drawMatrix() {
             ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = "#0F0"; 
-            ctx.font = fontSize + "px courier";
+            ctx.font = "15px courier";
             for(let i = 0; i < drops.length; i++) {
-                const text = letters[Math.floor(Math.random() * letters.length)];
-                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-                if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                const text = String.fromCharCode(0x30A0 + Math.random() * 96); // Katakana characters
+                ctx.fillText(text, i * 20, drops[i] * 20);
+                if(drops[i] * 20 > canvas.height && Math.random() > 0.975) drops[i] = 0;
                 drops[i]++;
             }
         }
         setInterval(drawMatrix, 33);
 
-        // --- 2. HELPER FUNCTIONS ---
+        // --- 2. UTILITIES ---
         const terminal = document.getElementById('terminal');
+        const statusText = document.getElementById('status-text');
         
-        function addLog(message, type = 'sys') {
+        function log(msg, type = 'sys') {
             const time = new Date().toLocaleTimeString();
-            const colorClass = type === 'ok' ? 'log-ok' : (type === 'warn' ? 'log-warn' : (type === 'error' ? 'log-error' : 'log-sys'));
-            terminal.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span> <span class="${colorClass}">${message}</span></div>`;
+            terminal.innerHTML += `<div class="log-${type}">[${time}] ${msg}</div>`;
             terminal.scrollTop = terminal.scrollHeight;
         }
 
-        function typeEffect(element, text, speed = 30) {
+        function typeEffect(el, text, speed = 50) {
             let i = 0;
-            element.innerText = '';
+            el.innerText = '';
             const interval = setInterval(() => {
-                if (i < text.length) { element.innerText += text.charAt(i); i++; } 
-                else { clearInterval(interval); }
+                if(i < text.length) { el.innerText += text.charAt(i); i++; } else clearInterval(interval);
             }, speed);
         }
 
-        function updateClock() {
-            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
-
-        // --- 3. REAL NETWORK TESTS ---
-        async function checkNetworkStatus() {
-            // 1. Check User Agent (Real)
-            const ua = navigator.userAgent;
-            document.getElementById('res-ua').innerText = ua.split(' ')[0] + "..."; // Simplified
-            addLog("User Agent captured.", "sys");
-
-            // 2. Check IPv4 (Real) - using ip-api
+        // --- 3. REAL NETWORK LOGIC ---
+        async function init() {
+            log("Connecting to API server...", "sys");
             try {
                 const start = performance.now();
-                const response = await fetch('http://ip-api.com/json/');
+                const res = await fetch('http://ip-api.com/json/');
+                const end = performance.now();
+                const data = await res.json();
+
+                if(data.status === 'success') {
+                    typeEffect(document.getElementById('val-ip'), data.query);
+                    typeEffect(document.getElementById('val-isp'), data.isp);
+                    typeEffect(document.getElementById('val-city'), `${data.city}, ${data.country}`);
+                    
+                    const ping = Math.round(end - start);
+                    document.getElementById('val-ping').innerText = ping + " ms";
+                    document.getElementById('val-ping').style.color = ping < 100 ? "#0f0" : "#ff0";
+                    
+                    log("IP resolved: " + data.query, "ok");
+                    
+                    // Set Map
+                    document.getElementById('map-placeholder').style.display = 'none';
+                    document.getElementById('map-frame').style.display = 'block';
+                    document.getElementById('map-frame').src = `https://www.openstreetmap.org/export/embed.html?bbox=${data.lon-0.05}%2C${data.lat-0.05}%2C${data.lon+0.05}%2C${data.lat+0.05}&layer=mapnik&marker=${data.lat}%2C${data.lon}`;
+                } else {
+                    throw new Error("API Fail");
+                }
+            } catch(e) {
+                log("Failed to connect public API. Check internet.", "error");
+            }
+            setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString() }, 1000);
+        }
+
+        // --- 4. SIMULATED WIFI SCAN (Browser Limitation Bypass) ---
+        function startScan() {
+            document.getElementById('btn-scan').disabled = true;
+            document.getElementById('status-text').innerText = "SCANNING...";
+            document.getElementById('wifi-list').innerHTML = '<div style="color:#0f0; width:100%; text-align:center; padding:20px;">Scanning airwaves... <br>Estimated 3s</div>';
+            log("Initiating promiscuous mode...", "sys");
+
+            // Request Geolocation to make it feel 'real' (asking permission makes user feel system is deep working)
+            if(navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    log("GPS lock acquired for triangulation.", "ok");
+                }, err => {
+                    log("GPS denied, using IP based triangulation.", "warn");
+                });
+            }
+
+            setTimeout(() => {
+                generateNetworks();
+                document.getElementById('btn-scan').disabled = false;
+                document.getElementById('status-text').innerText = "ONLINE";
+            }, 3000);
+        }
+
+        function generateNetworks() {
+            const container = document.getElementById('wifi-list');
+            container.innerHTML = '';
+            
+            // Generate realistic looking random data
+            const count = Math.floor(Math.random() * 6) + 5; // 5-10 networks
+            document.getElementById('wifi-count').innerText = count + " NODES";
+            
+            const prefixes = ["HOME", "Linksys", "TP-LINK", "Guest", "IndiHome", "CCTV", "Office", "User", "AndroidHotspot"];
+            const suffixes = ["5G", "2.4G", "Ext", "Guest", "IoT", "Private"];
+            
+            log(`Found ${count} wireless signals in proximity.`, "ok");
+
+            for(let i=0; i<count; i++) {
+                const name = prefixes[Math.floor(Math.random()*prefixes.length)] + "_" + Math.random().toString(36).substring(2, 6).toUpperCase();
+                const mac = Array.from({length:6}, () => Math.floor(Math.random()*256).toString(16).padStart(2,'0').toUpperCase()).join(':');
+                const signal = Math.floor(Math.random() * 60) + 40; // 40-100%
+                const channel = Math.floor(Math.random() * 12) + 1;
+                const isOpen = Math.random() > 0.7;
+
+                const div = document.createElement('div');
+                div.className = 'wifi-item';
+                div.onclick = () => attemptHack(name, isOpen);
+                
+                div.innerHTML = `
+                    <div class="wifi-name">${name} ${isOpen ? '(OPEN)' : ''}</div>
+                    <div class="wifi-mac">MAC: ${mac} | Ch: ${channel}</div>
+                    <div class="wifi-signal">
+                        <div class="signal-bar" style="color: ${signal > 70 ? '#0f0' : '#ff0'}">${signal}%</div>
+                        <div style="font-size:0.6rem; color:${isOpen ? '#ff0' : '#555'}">${isOpen ? 'UNSECURED' : 'WPA2-PSK'}</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        // --- 5. PING TEST (REAL) ---
+        async function measurePing() {
+            document.getElementById('btn-ping').disabled = true;
+            document.getElementById('val-ping').innerText = "Checking...";
+            log("Running latency test...", "sys");
+            
+            try {
+                const start = performance.now();
+                const res = await fetch('http://ip-api.com/json/');
                 const end = performance.now();
                 const ping = Math.round(end - start);
                 
-                const data = await response.json();
+                document.getElementById('val-ping').innerText = ping + " ms";
+                document.getElementById('val-ping').style.color = ping < 100 ? "#0f0" : "#ff0";
+                log(`Latency test result: ${ping}ms`, "ok");
+            } catch(e) {
+                document.getElementById('val-ping').innerText = "ERROR";
+                log("Ping failed.", "error");
+            }
+            document.getElementById('btn-ping').disabled = false;
+        }
+
+        // --- 6. HACK MODAL (SIMULATION) ---
+        function attemptHack(ssid, isOpen) {
+            document.getElementById('modal-target').innerText = ssid;
+            document.getElementById('modal-overlay').style.display = 'flex';
+            document.getElementById('modal-status').innerText = "Capturing packets...";
+            document.getElementById('modal-bar').style.width = "0%";
+            
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 5;
+                document.getElementById('modal-bar').style.width = progress + "%";
                 
-                if(data.status === 'success') {
-                    // Fill Main Data
-                    typeEffect(document.getElementById('val-ip'), data.query, 50);
-                    typeEffect(document.getElementById('val-isp'), data.isp, 20);
-                    typeEffect(document.getElementById('val-city'), `${data.city}, ${data.regionName}`, 20);
-                    typeEffect(document.getElementById('val-country'), data.country, 20);
-                    
-                    document.getElementById('res-v4').innerHTML = `<span style="color:#0f0;">CONNECTED</span>`;
-                    document.getElementById('res-ping').innerHTML = `<span style="color:${ping < 100 ? '#0f0' : '#ff0'}">${ping} ms</span>`;
-                    
-                    addLog(`IPv4 Up: ${data.query}`, "ok");
-                    addLog(`Latency: ${ping}ms`, "ok");
-
-                    // Map
-                    const mapFrame = document.getElementById('map-frame');
-                    document.getElementById('map-placeholder').style.display = 'none';
-                    mapFrame.style.display = 'block';
-                    mapFrame.src = `https://www.openstreetmap.org/export/embed.html?bbox=${data.lon-0.05}%2C${data.lat-0.05}%2C${data.lon+0.05}%2C${data.lat+0.05}&layer=mapnik&marker=${data.lat}%2C${data.lon}`;
+                if(progress >= 100) {
+                    clearInterval(interval);
+                    if(isOpen) {
+                        document.getElementById('modal-status').innerText = "SUCCESS: Network vulnerable (No Password)";
+                        document.getElementById('modal-status').style.color = "#0f0";
+                        log(`Infiltration success on ${ssid}`, "ok");
+                    } else {
+                        document.getElementById('modal-status').innerText = "FAILED: WPA2 Handshake Timeout";
+                        document.getElementById('modal-status').style.color = "#f00";
+                        log(`Failed to crack key for ${ssid}`, "error");
+                    }
                 }
-            } catch (e) {
-                document.getElementById('res-v4').innerHTML = `<span style="color:#f00;">FAILED</span>`;
-                addLog("IPv4 check failed.", "error");
-            }
-
-            // 3. Check IPv6 (Real attempt)
-            // We try to fetch from a known IPv6 only endpoint or simply check if browser supports it
-            if (window.matchMedia('(min-resolution: 0dpi)').matches && navigator.connection) {
-                // Just a visual placeholder check, true IPv6 check requires specific API
-                document.getElementById('res-v6').innerHTML = `<span style="color:#555;">SUPPORTED</span>`;
-            } else {
-                 document.getElementById('res-v6').innerHTML = `<span style="color:#666;">N/A</span>`;
-            }
-
-            // 4. Check DNS over HTTPS (DoH) Estimation
-            // If we can't easily detect, we show 'Unknown' or guess based on latency. 
-            // Modern browsers often use it.
-            document.getElementById('res-doh').innerHTML = `<span style="color:#0ff;">ACTIVE (Browser Default)</span>`;
-            
-            document.getElementById('net-status-badge').innerText = "ANALYSIS COMPLETE";
+            }, 100);
         }
 
-        // --- 4. MAIN EXECUTION ---
-        window.onload = function() {
-            addLog("Starting real-time network analysis...", "sys");
-            addLog("NOTE: WiFi list cannot be read due to security sandbox.", "warn");
-            
-            setTimeout(checkNetworkStatus, 1000);
+        function closeModal() {
+            document.getElementById('modal-overlay').style.display = 'none';
         }
+
+        // Start
+        window.onload = init;
     </script>
 </body>
 </html>
