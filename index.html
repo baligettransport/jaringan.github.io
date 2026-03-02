@@ -148,7 +148,7 @@
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.95);
             z-index: 10;
             justify-content: center;
             align-items: center;
@@ -156,9 +156,38 @@
         .modal-content {
             border: 1px solid #0f0;
             padding: 20px;
-            width: 300px;
+            width: 320px;
             text-align: center;
+            position: relative;
         }
+        
+        /* Result Box in Modal */
+        .result-box {
+            margin-top: 15px;
+            background: #001100;
+            border: 1px dashed #0f0;
+            padding: 10px;
+            display: none; /* Hidden initially */
+        }
+        .result-label { font-size: 0.8rem; color: #888; margin-bottom: 5px; display: block; }
+        .result-value { 
+            font-size: 1.2rem; 
+            color: #fff; 
+            background: #000; 
+            padding: 5px; 
+            border: 1px solid #333;
+            word-break: break-all;
+        }
+        .btn-copy {
+            margin-top: 10px;
+            background: transparent;
+            border: 1px solid #555;
+            color: #555;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .btn-copy:hover { border-color: #0f0; color: #0f0; }
 
         /* --- TERMINAL --- */
         .terminal-log {
@@ -205,7 +234,7 @@
     <div class="main-container">
         
         <div class="header">
-            <h1>[ NETWORK SURVEILLANCE v2.4 ]</h1>
+            <h1>[ NETWORK SURVEILLANCE v2.5 ]</h1>
             <div class="status-bar">
                 <span>STATUS: <span id="status-text">STANDBY</span></span>
                 <span id="clock">--:--:--</span>
@@ -267,13 +296,23 @@
     <!-- MODAL POPUP -->
     <div id="modal-overlay" class="modal-overlay">
         <div class="modal-content">
-            <h3 style="color:#0f0;">TARGET: <span id="modal-target">SSID</span></h3>
-            <p style="font-size:0.8rem; color:#888;">Attempting handshake capture...</p>
-            <div id="modal-progress" style="height:10px; background:#111; margin:10px 0;">
-                <div id="modal-bar" style="width:0%; height:100%; background:#0f0; transition:width 0.2s;"></div>
+            <h3 style="color:#0f0; margin-bottom:15px;">TARGET: <span id="modal-target">SSID</span></h3>
+            
+            <p id="modal-status-text" style="font-size:0.9rem; color:#888;">Attempting handshake capture...</p>
+            
+            <!-- Progress Bar -->
+            <div id="modal-progress-container" style="height:10px; background:#111; margin:10px 0; border:1px solid #333;">
+                <div id="modal-bar" style="width:0%; height:100%; background:#0f0; transition:width 0.1s;"></div>
             </div>
-            <p id="modal-status" style="color:#ff0;">Initializing...</p>
-            <button onclick="closeModal()" style="margin-top:10px; background:transparent; border:1px solid #f00; color:#f00; padding:5px 10px; cursor:pointer;">ABORT</button>
+
+            <!-- RESULT BOX (Initially Hidden) -->
+            <div id="result-display" class="result-box">
+                <span class="result-label" id="res-label">PASSWORD KEY:</span>
+                <div class="result-value" id="res-password">-</div>
+                <button class="btn-copy" onclick="copyPassword()">📋 COPY KEY</button>
+            </div>
+
+            <button onclick="closeModal()" style="margin-top:15px; background:transparent; border:1px solid #f00; color:#f00; padding:5px 10px; cursor:pointer;">ABORT / CLOSE</button>
         </div>
     </div>
 
@@ -299,7 +338,7 @@
             ctx.fillStyle = "#0F0"; 
             ctx.font = "15px courier";
             for(let i = 0; i < drops.length; i++) {
-                const text = String.fromCharCode(0x30A0 + Math.random() * 96); // Katakana characters
+                const text = String.fromCharCode(0x30A0 + Math.random() * 96);
                 ctx.fillText(text, i * 20, drops[i] * 20);
                 if(drops[i] * 20 > canvas.height && Math.random() > 0.975) drops[i] = 0;
                 drops[i]++;
@@ -358,21 +397,12 @@
             setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString() }, 1000);
         }
 
-        // --- 4. SIMULATED WIFI SCAN (Browser Limitation Bypass) ---
+        // --- 4. SIMULATED WIFI SCAN ---
         function startScan() {
             document.getElementById('btn-scan').disabled = true;
             document.getElementById('status-text').innerText = "SCANNING...";
             document.getElementById('wifi-list').innerHTML = '<div style="color:#0f0; width:100%; text-align:center; padding:20px;">Scanning airwaves... <br>Estimated 3s</div>';
             log("Initiating promiscuous mode...", "sys");
-
-            // Request Geolocation to make it feel 'real' (asking permission makes user feel system is deep working)
-            if(navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    log("GPS lock acquired for triangulation.", "ok");
-                }, err => {
-                    log("GPS denied, using IP based triangulation.", "warn");
-                });
-            }
 
             setTimeout(() => {
                 generateNetworks();
@@ -385,19 +415,17 @@
             const container = document.getElementById('wifi-list');
             container.innerHTML = '';
             
-            // Generate realistic looking random data
-            const count = Math.floor(Math.random() * 6) + 5; // 5-10 networks
+            const count = Math.floor(Math.random() * 6) + 5; 
             document.getElementById('wifi-count').innerText = count + " NODES";
             
             const prefixes = ["HOME", "Linksys", "TP-LINK", "Guest", "IndiHome", "CCTV", "Office", "User", "AndroidHotspot"];
-            const suffixes = ["5G", "2.4G", "Ext", "Guest", "IoT", "Private"];
             
-            log(`Found ${count} wireless signals in proximity.`, "ok");
+            log(`Found ${count} wireless signals.`, "ok");
 
             for(let i=0; i<count; i++) {
                 const name = prefixes[Math.floor(Math.random()*prefixes.length)] + "_" + Math.random().toString(36).substring(2, 6).toUpperCase();
                 const mac = Array.from({length:6}, () => Math.floor(Math.random()*256).toString(16).padStart(2,'0').toUpperCase()).join(':');
-                const signal = Math.floor(Math.random() * 60) + 40; // 40-100%
+                const signal = Math.floor(Math.random() * 60) + 40; 
                 const channel = Math.floor(Math.random() * 12) + 1;
                 const isOpen = Math.random() > 0.7;
 
@@ -439,31 +467,79 @@
             document.getElementById('btn-ping').disabled = false;
         }
 
-        // --- 6. HACK MODAL (SIMULATION) ---
+        // --- 6. HACK MODAL & RESULT LOGIC ---
         function attemptHack(ssid, isOpen) {
             document.getElementById('modal-target').innerText = ssid;
             document.getElementById('modal-overlay').style.display = 'flex';
-            document.getElementById('modal-status').innerText = "Capturing packets...";
+            
+            // Reset UI
+            document.getElementById('modal-status-text').innerText = "Handshaking...";
             document.getElementById('modal-bar').style.width = "0%";
+            document.getElementById('result-display').style.display = 'none'; // Hide result box
+            document.getElementById('modal-progress-container').style.display = 'block'; // Show progress bar
             
             let progress = 0;
             const interval = setInterval(() => {
-                progress += 5;
-                document.getElementById('modal-bar').style.width = progress + "%";
+                progress += 2; // Speed of bar
                 
-                if(progress >= 100) {
+                if(progress <= 100) {
+                   document.getElementById('modal-bar').style.width = progress + "%";
+                   
+                   // Update text during progress
+                   if(progress > 50) document.getElementById('modal-status-text').innerText = "Decrypting packets...";
+                   if(progress > 80) document.getElementById('modal-status-text').innerText = "Analyzing key structure...";
+                } 
+                else {
                     clearInterval(interval);
-                    if(isOpen) {
-                        document.getElementById('modal-status').innerText = "SUCCESS: Network vulnerable (No Password)";
-                        document.getElementById('modal-status').style.color = "#0f0";
-                        log(`Infiltration success on ${ssid}`, "ok");
-                    } else {
-                        document.getElementById('modal-status').innerText = "FAILED: WPA2 Handshake Timeout";
-                        document.getElementById('modal-status').style.color = "#f00";
-                        log(`Failed to crack key for ${ssid}`, "error");
-                    }
+                    showResult(ssid, isOpen);
                 }
-            }, 100);
+            }, 30);
+        }
+
+        function showResult(ssid, isOpen) {
+            document.getElementById('modal-progress-container').style.display = 'none'; // Hide bar
+            const resultBox = document.getElementById('result-display');
+            const resLabel = document.getElementById('res-label');
+            const resPass = document.getElementById('res-password');
+            
+            if(isOpen) {
+                document.getElementById('modal-status-text').innerText = "SUCCESS: Network Open Detected";
+                document.getElementById('modal-status-text').style.color = "#0f0";
+                
+                resLabel.innerText = "CONNECTION STATUS:";
+                resPass.innerText = "CONNECTED (No Password)";
+                resPass.style.color = "#0f0";
+                log(`Infiltration success on ${ssid} (Open Network)`, "ok");
+            } else {
+                document.getElementById('modal-status-text').innerText = "SUCCESS: Key Captured";
+                document.getElementById('modal-status-text').style.color = "#0f0";
+                
+                // Generate Fake Password
+                const fakePass = generateFakePassword();
+                
+                resLabel.innerText = "WPA2 KEY FOUND:";
+                resPass.innerText = fakePass;
+                resPass.style.color = "#fff";
+                log(`Key captured for ${ssid}: ${fakePass}`, "ok");
+            }
+            
+            resultBox.style.display = 'block';
+        }
+
+        function generateFakePassword() {
+            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
+            let pass = "";
+            for(let i=0; i<12; i++) {
+                pass += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return pass;
+        }
+
+        function copyPassword() {
+            const text = document.getElementById('res-password').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert("Key disalin ke clipboard!");
+            });
         }
 
         function closeModal() {
