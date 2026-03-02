@@ -3,551 +3,358 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SYSTEM: DEEP NETWORK SURVEILLANCE</title>
+    <title>BALI ISLAND NETWORK SURVEILLANCE</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
     <style>
-        /* --- BASE STYLING --- */
-        body {
-            background-color: #000;
-            color: #0f0;
-            font-family: 'Courier New', Courier, monospace;
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-            min-height: 100vh;
-        }
+        body { margin: 0; padding: 0; background: #000; color: #0f0; font-family: 'Consolas', monospace; height: 100vh; overflow: hidden; }
+        
+        /* Background Matrix */
+        #matrix-bg { position: fixed; top:0; left:0; width:100%; height:100%; z-index: -1; opacity: 0.1; }
 
-        /* --- MATRIX BACKGROUND --- */
-        canvas {
-            display: block;
-            position: fixed;
-            top: 0;
-            left: 0;
-            z-index: -1;
-            opacity: 0.2;
-        }
-
-        .main-container {
-            position: relative;
-            z-index: 1;
-            max-width: 900px;
-            margin: 20px auto;
-            padding: 20px;
-        }
-
-        /* --- HEADER --- */
-        .header {
-            text-align: center;
-            border-bottom: 2px solid #0f0;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-        }
-
-        .header h1 {
-            margin: 0;
-            font-size: 1.8rem;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            text-shadow: 0 0 10px #0f0;
-            animation: flicker 3s infinite alternate;
-        }
-
-        .status-bar {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.8rem;
-            color: #0f0;
-            margin-top: 10px;
-            border: 1px solid #333;
-            padding: 5px 10px;
-            background: rgba(0, 20, 0, 0.5);
-        }
-
-        /* --- GRID --- */
-        .grid-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-
-        @media (max-width: 600px) {
-            .grid-container { grid-template-columns: 1fr; }
-        }
-
-        .data-card {
-            background: rgba(0, 10, 0, 0.9);
+        /* Layout Peta Penuh */
+        #map { width: 100%; height: 100%; z-index: 1; }
+        
+        /* Custom Map Style (Dark Mode) */
+        .leaflet-container { background: #000; }
+        .leaflet-tile-pane { filter: invert(100%) hue-rotate(180deg) brightness(0.8) contrast(1.2); }
+        
+        /* Label Nama di Peta */
+        .wifi-label {
+            background: rgba(0, 0, 0, 0.7);
             border: 1px solid #0f0;
-            padding: 15px;
-            position: relative;
-            box-shadow: 0 0 10px rgba(0, 255, 0, 0.1);
-        }
-
-        .data-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 5px;
-            height: 100%;
-            background: #0f0;
-        }
-
-        .label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
-        .value { font-size: 1.1rem; font-weight: bold; color: #fff; margin-top: 5px; }
-
-        /* --- ACTION BUTTON --- */
-        .btn-action {
-            grid-column: 1 / -1;
-            background: #001a00;
+            border-radius: 3px;
+            padding: 2px 5px;
             color: #0f0;
-            border: 1px solid #0f0;
-            padding: 10px;
-            cursor: pointer;
-            font-family: inherit;
+            font-size: 10px;
             font-weight: bold;
-            transition: all 0.3s;
-            text-transform: uppercase;
+            white-space: nowrap;
+            box-shadow: 0 0 5px rgba(0,255,0,0.3);
         }
-        .btn-action:hover { background: #0f0; color: #000; }
-        .btn-action:disabled { border-color: #333; color: #333; cursor: not-allowed; }
+        .wifi-label.open { border-color: #ff0; color: #ff0; }
 
-        /* --- WIFI LIST (REAL LOOK) --- */
-        .wifi-box {
-            grid-column: 1 / -1;
-            background: #000;
-            border: 1px solid #0f0;
-            max-height: 300px;
-            overflow-y: auto;
+        /* User Marker Pulse */
+        .user-pulse {
+            width: 20px; height: 20px; background: rgba(0, 150, 255, 0.5);
+            border-radius: 50%; animation: pulse-anim 2s infinite;
         }
+        @keyframes pulse-anim {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(3); opacity: 0; }
+        }
+
+        /* Sidebar Control */
+        #control-panel {
+            position: fixed; top: 20px; left: 50px; z-index: 1000;
+            background: rgba(0, 20, 0, 0.9); border: 1px solid #0f0; padding: 15px;
+            width: 280px; box-shadow: 0 0 20px rgba(0,255,0,0.2);
+        }
+        .panel-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #0f0; padding-bottom: 5px; }
+        .status-row { margin-bottom: 8px; font-size: 0.8rem; }
+        .status-label { color: #888; }
+        .status-val { color: #fff; float: right; }
         
-        .wifi-header {
-            background: #003300;
-            padding: 10px;
-            border-bottom: 1px solid #0f0;
-            display: flex;
-            justify-content: space-between;
-            position: sticky;
-            top: 0;
+        .btn-scan {
+            width: 100%; margin-top: 10px; background: #000; border: 1px solid #0f0;
+            color: #0f0; padding: 8px; cursor: pointer; font-weight: bold;
         }
+        .btn-scan:hover { background: #0f0; color: #000; }
+        .btn-loc {
+            width: 100%; margin-top: 5px; background: #000; border: 1px solid #555;
+            color: #555; padding: 8px; cursor: pointer;
+        }
+        .btn-loc:hover { border-color: #0ff; color: #0ff; }
 
-        .wifi-item {
-            padding: 10px;
-            border-bottom: 1px solid #111;
-            cursor: pointer;
-            transition: background 0.2s;
-            position: relative;
+        /* Modal Detail */
+        #modal-overlay {
+            display: none; position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center;
         }
-        .wifi-item:hover { background: rgba(0, 255, 0, 0.1); }
+        #modal-box {
+            width: 90%; max-width: 500px; background: #000; border: 2px solid #0f0;
+            padding: 20px; position: relative; box-shadow: 0 0 50px rgba(0,255,0,0.2);
+        }
+        .close-btn { position: absolute; top: 10px; right: 15px; color: #f00; cursor: pointer; font-weight: bold; }
+        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .d-box { background: #111; padding: 8px; border-left: 2px solid #0f0; }
+        .d-lbl { font-size: 0.7rem; color: #666; }
+        .d-vl { font-size: 0.9rem; color: #fff; font-weight: bold; }
         
-        .wifi-name { font-weight: bold; color: #fff; }
-        .wifi-mac { font-size: 0.7rem; color: #555; }
-        .wifi-signal { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); text-align: right; }
-        .signal-bar { font-size: 0.8rem; }
-        
-        /* Modal / Overlay for interaction */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95);
-            z-index: 10;
-            justify-content: center;
-            align-items: center;
+        .btn-connect {
+            width: 100%; margin-top: 15px; padding: 10px; background: #0f0; color: #000;
+            border: none; font-weight: bold; cursor: pointer; font-size: 1rem;
         }
-        .modal-content {
-            border: 1px solid #0f0;
-            padding: 20px;
-            width: 320px;
-            text-align: center;
-            position: relative;
-        }
-        
-        /* Result Box in Modal */
-        .result-box {
-            margin-top: 15px;
-            background: #001100;
-            border: 1px dashed #0f0;
-            padding: 10px;
-            display: none; /* Hidden initially */
-        }
-        .result-label { font-size: 0.8rem; color: #888; margin-bottom: 5px; display: block; }
-        .result-value { 
-            font-size: 1.2rem; 
-            color: #fff; 
-            background: #000; 
-            padding: 5px; 
-            border: 1px solid #333;
-            word-break: break-all;
-        }
-        .btn-copy {
-            margin-top: 10px;
-            background: transparent;
-            border: 1px solid #555;
-            color: #555;
-            padding: 5px 10px;
-            cursor: pointer;
-            font-family: inherit;
-        }
-        .btn-copy:hover { border-color: #0f0; color: #0f0; }
+        .btn-connect:disabled { background: #333; color: #666; }
 
-        /* --- TERMINAL --- */
-        .terminal-log {
-            grid-column: 1 / -1;
-            background: #000;
-            border: 1px solid #333;
-            padding: 10px;
-            height: 150px;
-            overflow-y: auto;
-            font-size: 0.8rem;
-            margin-top: 20px;
-        }
-        .log-ok { color: #0f0; }
-        .log-warn { color: #ff0; }
-        .log-sys { color: #0ff; }
-        .log-error { color: #f00; }
-
-        /* --- MAP --- */
-        .map-box {
-            grid-column: 1 / -1;
-            height: 200px;
-            border: 1px solid #0f0;
-            background: #001100;
-        }
-        iframe { width: 100%; height: 100%; border: 0; filter: grayscale(100%) invert(90%); }
-
-        /* Animation */
-        @keyframes flicker { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
-        @keyframes scanline { 0% { top: 0%; } 100% { top: 100%; } }
-        .scanline {
-            width: 100%; height: 50px; z-index: 99;
-            background: linear-gradient(rgba(0,255,0,0.05), transparent);
-            position: fixed; top: 0; left: 0;
-            animation: scanline 3s linear infinite;
-            pointer-events: none;
+        /* Log Console Mini */
+        #console-log {
+            position: fixed; bottom: 10px; left: 50px; width: 280px; height: 100px;
+            background: rgba(0,0,0,0.8); border: 1px solid #333; z-index: 1000;
+            padding: 10px; font-size: 0.7rem; overflow-y: auto;
         }
     </style>
 </head>
 <body>
 
-    <canvas id="matrixCanvas"></canvas>
-    <div class="scanline"></div>
+    <canvas id="matrix-bg"></canvas>
+    <div id="map"></div>
 
-    <div class="main-container">
-        
-        <div class="header">
-            <h1>[ NETWORK SURVEILLANCE v2.5 ]</h1>
-            <div class="status-bar">
-                <span>STATUS: <span id="status-text">STANDBY</span></span>
-                <span id="clock">--:--:--</span>
-                <span>AUTH: GRANTED</span>
-            </div>
+    <!-- Control Panel -->
+    <div id="control-panel">
+        <div class="panel-title">📍 BALI NETWORK OPS</div>
+        <div class="status-row">
+            <span class="status-label">Status:</span>
+            <span class="status-val" id="s-status">STANDBY</span>
+        </div>
+        <div class="status-row">
+            <span class="status-label">Lokasi Anda:</span>
+            <span class="status-val" id="s-loc">Searching...</span>
+        </div>
+        <div class="status-row">
+            <span class="status-label">Nodes Found:</span>
+            <span class="status-val" id="s-nodes">0</span>
+        </div>
+        <div class="status-row">
+            <span class="status-label">Accuracy:</span>
+            <span class="status-val" id="s-acc">-</span>
         </div>
 
-        <div class="grid-container">
+        <button class="btn-scan" onclick="loadBaliNetworks()">🔍 SCAN BALI AREA</button>
+        <button class="btn-loc" onclick="centerToUser()">📍 MY LOCATION</button>
+    </div>
+
+    <!-- Console Log -->
+    <div id="console-log">
+        <div>> System Ready...</div>
+    </div>
+
+    <!-- Modal Detail -->
+    <div id="modal-overlay">
+        <div id="modal-box">
+            <span class="close-btn" onclick="document.getElementById('modal-overlay').style.display='none'">✕</span>
+            <div style="font-size:0.8rem; color:#888;">TARGET NETWORK</div>
+            <h2 style="margin:5px 0 15px 0; color:#fff;" id="m-name">SSID NAME</h2>
             
-            <div class="data-card">
-                <div class="label">Public IP Address</div>
-                <div class="value" id="val-ip">Resolving...</div>
+            <div class="data-grid">
+                <div class="d-box"><div class="d-lbl">MAC ADDRESS</div><div class="d-vl" id="m-mac">-</div></div>
+                <div class="d-box"><div class="d-lbl">SIGNAL</div><div class="d-vl" id="m-sig">-</div></div>
+                <div class="d-box"><div class="d-lbl">CHANNEL</div><div class="d-vl" id="m-chan">-</div></div>
+                <div class="d-box"><div class="d-lbl">ENCRYPTION</div><div class="d-vl" id="m-enc">-</div></div>
+                <div class="d-box"><div class="d-lbl">IP ADDRESS</div><div class="d-vl" id="m-ip">-</div></div>
+                <div class="d-box"><div class="d-lbl">PASSWORD</div><div class="d-vl" id="m-pass" style="color:#ff0;">-</div></div>
             </div>
 
-            <div class="data-card">
-                <div class="label">ISP / Organization</div>
-                <div class="value" id="val-isp">Identifying...</div>
-            </div>
-
-            <div class="data-card">
-                <div class="label">Location (City)</div>
-                <div class="value" id="val-city">Triangulating...</div>
-            </div>
-
-            <div class="data-card">
-                <div class="label">Latency / Ping</div>
-                <div class="value" id="val-ping">Testing...</div>
-            </div>
-
-            <!-- REAL ACTION BUTTONS -->
-            <button class="btn-action" id="btn-scan" onclick="startScan()">🔍 INITIATE NETWORK SCAN</button>
-            <button class="btn-action" id="btn-ping" onclick="measurePing()" style="border-color:#555;">⚡ RE-TEST LATENCY</button>
-
-            <!-- WIFI LIST CONTAINER -->
-            <div class="wifi-box">
-                <div class="wifi-header">
-                    <span>📡 DETECTED SIGNALS</span>
-                    <span id="wifi-count">0 NODES</span>
-                </div>
-                <div id="wifi-list" style="min-height:100px; color:#333; display:flex; align-items:center; justify-content:center;">
-                    Press [INITIATE SCAN] to search...
-                </div>
-            </div>
-
-            <!-- MAP -->
-            <div class="map-box">
-                 <iframe id="map-frame" style="display:none;"></iframe>
-                 <div id="map-placeholder" style="display:flex; align-items:center; justify-content:center; height:100%; color:#555;">GPS LOCK PENDING...</div>
-            </div>
-
-            <!-- TERMINAL -->
-            <div class="terminal-log" id="terminal">
-                <div class="log-sys">System ready. Waiting for command...</div>
-            </div>
-
+            <button class="btn-connect" id="btn-conn" onclick="connectSim()">🔌 SAMBUNGKAN</button>
+            <div id="conn-log" style="display:none; margin-top:10px; font-size:0.8rem; color:#0f0;"></div>
         </div>
     </div>
 
-    <!-- MODAL POPUP -->
-    <div id="modal-overlay" class="modal-overlay">
-        <div class="modal-content">
-            <h3 style="color:#0f0; margin-bottom:15px;">TARGET: <span id="modal-target">SSID</span></h3>
-            
-            <p id="modal-status-text" style="font-size:0.9rem; color:#888;">Attempting handshake capture...</p>
-            
-            <!-- Progress Bar -->
-            <div id="modal-progress-container" style="height:10px; background:#111; margin:10px 0; border:1px solid #333;">
-                <div id="modal-bar" style="width:0%; height:100%; background:#0f0; transition:width 0.1s;"></div>
-            </div>
-
-            <!-- RESULT BOX (Initially Hidden) -->
-            <div id="result-display" class="result-box">
-                <span class="result-label" id="res-label">PASSWORD KEY:</span>
-                <div class="result-value" id="res-password">-</div>
-                <button class="btn-copy" onclick="copyPassword()">📋 COPY KEY</button>
-            </div>
-
-            <button onclick="closeModal()" style="margin-top:15px; background:transparent; border:1px solid #f00; color:#f00; padding:5px 10px; cursor:pointer;">ABORT / CLOSE</button>
-        </div>
-    </div>
-
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
     <script>
-        // --- 1. MATRIX EFFECT ---
-        const canvas = document.getElementById('matrixCanvas');
+        // --- MATRIX BACKGROUND ---
+        const canvas = document.getElementById('matrix-bg');
         const ctx = canvas.getContext('2d');
-        let columns;
-        
-        function initMatrix() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            columns = canvas.width / 20;
-            drops = [];
-            for(let i=0; i<columns; i++) drops[i] = 1;
-        }
-        window.addEventListener('resize', initMatrix);
-        initMatrix();
-
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        resize(); window.addEventListener('resize', resize);
+        let drops = []; for(let i=0; i<(canvas.width/20); i++) drops[i] = 1;
         function drawMatrix() {
-            ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#0F0"; 
-            ctx.font = "15px courier";
+            ctx.fillStyle = "rgba(0, 0, 0, 0.05)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#0F0"; ctx.font = "15px monospace";
             for(let i = 0; i < drops.length; i++) {
-                const text = String.fromCharCode(0x30A0 + Math.random() * 96);
-                ctx.fillText(text, i * 20, drops[i] * 20);
+                ctx.fillText(Math.random() > 0.5 ? "1" : "0", i * 20, drops[i] * 20);
                 if(drops[i] * 20 > canvas.height && Math.random() > 0.975) drops[i] = 0;
                 drops[i]++;
             }
         }
-        setInterval(drawMatrix, 33);
+        setInterval(drawMatrix, 50);
 
-        // --- 2. UTILITIES ---
-        const terminal = document.getElementById('terminal');
-        const statusText = document.getElementById('status-text');
-        
-        function log(msg, type = 'sys') {
-            const time = new Date().toLocaleTimeString();
-            terminal.innerHTML += `<div class="log-${type}">[${time}] ${msg}</div>`;
-            terminal.scrollTop = terminal.scrollHeight;
-        }
+        // --- 1. SETUP PETA BALI ---
+        // Koordinat tengah Pulau Bali
+        const baliCenter = [-8.4095, 115.1889]; 
+        const map = L.map('map', {
+            center: baliCenter,
+            zoom: 11, // Zoom level pas untuk melihat seluruh pulau
+            zoomControl: false
+        });
 
-        function typeEffect(el, text, speed = 50) {
-            let i = 0;
-            el.innerText = '';
-            const interval = setInterval(() => {
-                if(i < text.length) { el.innerText += text.charAt(i); i++; } else clearInterval(interval);
-            }, speed);
-        }
+        // Load Tile (Peta)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'CyberMap'
+        }).addTo(map);
 
-        // --- 3. REAL NETWORK LOGIC ---
-        async function init() {
-            log("Connecting to API server...", "sys");
-            try {
-                const start = performance.now();
-                const res = await fetch('http://ip-api.com/json/');
-                const end = performance.now();
-                const data = await res.json();
+        // Tambah Zoom Control manual di kanan bawah
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-                if(data.status === 'success') {
-                    typeEffect(document.getElementById('val-ip'), data.query);
-                    typeEffect(document.getElementById('val-isp'), data.isp);
-                    typeEffect(document.getElementById('val-city'), `${data.city}, ${data.country}`);
-                    
-                    const ping = Math.round(end - start);
-                    document.getElementById('val-ping').innerText = ping + " ms";
-                    document.getElementById('val-ping').style.color = ping < 100 ? "#0f0" : "#ff0";
-                    
-                    log("IP resolved: " + data.query, "ok");
-                    
-                    // Set Map
-                    document.getElementById('map-placeholder').style.display = 'none';
-                    document.getElementById('map-frame').style.display = 'block';
-                    document.getElementById('map-frame').src = `https://www.openstreetmap.org/export/embed.html?bbox=${data.lon-0.05}%2C${data.lat-0.05}%2C${data.lon+0.05}%2C${data.lat+0.05}&layer=mapnik&marker=${data.lat}%2C${data.lon}`;
-                } else {
-                    throw new Error("API Fail");
-                }
-            } catch(e) {
-                log("Failed to connect public API. Check internet.", "error");
-            }
-            setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString() }, 1000);
-        }
+        let userMarker = null;
+        let networkLayer = L.layerGroup().addTo(map);
+        let currentTarget = null;
 
-        // --- 4. SIMULATED WIFI SCAN ---
-        function startScan() {
-            document.getElementById('btn-scan').disabled = true;
-            document.getElementById('status-text').innerText = "SCANNING...";
-            document.getElementById('wifi-list').innerHTML = '<div style="color:#0f0; width:100%; text-align:center; padding:20px;">Scanning airwaves... <br>Estimated 3s</div>';
-            log("Initiating promiscuous mode...", "sys");
-
-            setTimeout(() => {
-                generateNetworks();
-                document.getElementById('btn-scan').disabled = false;
-                document.getElementById('status-text').innerText = "ONLINE";
-            }, 3000);
-        }
-
-        function generateNetworks() {
-            const container = document.getElementById('wifi-list');
-            container.innerHTML = '';
-            
-            const count = Math.floor(Math.random() * 6) + 5; 
-            document.getElementById('wifi-count').innerText = count + " NODES";
-            
-            const prefixes = ["HOME", "Linksys", "TP-LINK", "Guest", "IndiHome", "CCTV", "Office", "User", "AndroidHotspot"];
-            
-            log(`Found ${count} wireless signals.`, "ok");
-
-            for(let i=0; i<count; i++) {
-                const name = prefixes[Math.floor(Math.random()*prefixes.length)] + "_" + Math.random().toString(36).substring(2, 6).toUpperCase();
-                const mac = Array.from({length:6}, () => Math.floor(Math.random()*256).toString(16).padStart(2,'0').toUpperCase()).join(':');
-                const signal = Math.floor(Math.random() * 60) + 40; 
-                const channel = Math.floor(Math.random() * 12) + 1;
-                const isOpen = Math.random() > 0.7;
-
-                const div = document.createElement('div');
-                div.className = 'wifi-item';
-                div.onclick = () => attemptHack(name, isOpen);
-                
-                div.innerHTML = `
-                    <div class="wifi-name">${name} ${isOpen ? '(OPEN)' : ''}</div>
-                    <div class="wifi-mac">MAC: ${mac} | Ch: ${channel}</div>
-                    <div class="wifi-signal">
-                        <div class="signal-bar" style="color: ${signal > 70 ? '#0f0' : '#ff0'}">${signal}%</div>
-                        <div style="font-size:0.6rem; color:${isOpen ? '#ff0' : '#555'}">${isOpen ? 'UNSECURED' : 'WPA2-PSK'}</div>
-                    </div>
-                `;
-                container.appendChild(div);
-            }
-        }
-
-        // --- 5. PING TEST (REAL) ---
-        async function measurePing() {
-            document.getElementById('btn-ping').disabled = true;
-            document.getElementById('val-ping').innerText = "Checking...";
-            log("Running latency test...", "sys");
-            
-            try {
-                const start = performance.now();
-                const res = await fetch('http://ip-api.com/json/');
-                const end = performance.now();
-                const ping = Math.round(end - start);
-                
-                document.getElementById('val-ping').innerText = ping + " ms";
-                document.getElementById('val-ping').style.color = ping < 100 ? "#0f0" : "#ff0";
-                log(`Latency test result: ${ping}ms`, "ok");
-            } catch(e) {
-                document.getElementById('val-ping').innerText = "ERROR";
-                log("Ping failed.", "error");
-            }
-            document.getElementById('btn-ping').disabled = false;
-        }
-
-        // --- 6. HACK MODAL & RESULT LOGIC ---
-        function attemptHack(ssid, isOpen) {
-            document.getElementById('modal-target').innerText = ssid;
-            document.getElementById('modal-overlay').style.display = 'flex';
-            
-            // Reset UI
-            document.getElementById('modal-status-text').innerText = "Handshaking...";
-            document.getElementById('modal-bar').style.width = "0%";
-            document.getElementById('result-display').style.display = 'none'; // Hide result box
-            document.getElementById('modal-progress-container').style.display = 'block'; // Show progress bar
-            
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += 2; // Speed of bar
-                
-                if(progress <= 100) {
-                   document.getElementById('modal-bar').style.width = progress + "%";
-                   
-                   // Update text during progress
-                   if(progress > 50) document.getElementById('modal-status-text').innerText = "Decrypting packets...";
-                   if(progress > 80) document.getElementById('modal-status-text').innerText = "Analyzing key structure...";
-                } 
-                else {
-                    clearInterval(interval);
-                    showResult(ssid, isOpen);
-                }
-            }, 30);
-        }
-
-        function showResult(ssid, isOpen) {
-            document.getElementById('modal-progress-container').style.display = 'none'; // Hide bar
-            const resultBox = document.getElementById('result-display');
-            const resLabel = document.getElementById('res-label');
-            const resPass = document.getElementById('res-password');
-            
-            if(isOpen) {
-                document.getElementById('modal-status-text').innerText = "SUCCESS: Network Open Detected";
-                document.getElementById('modal-status-text').style.color = "#0f0";
-                
-                resLabel.innerText = "CONNECTION STATUS:";
-                resPass.innerText = "CONNECTED (No Password)";
-                resPass.style.color = "#0f0";
-                log(`Infiltration success on ${ssid} (Open Network)`, "ok");
+        // --- 2. REALTIME GPS TRACKING (ANDA) ---
+        function trackUser() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(updatePosition, handleError, {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 0
+                });
             } else {
-                document.getElementById('modal-status-text').innerText = "SUCCESS: Key Captured";
-                document.getElementById('modal-status-text').style.color = "#0f0";
+                log("Browser tidak support GPS");
+            }
+        }
+
+        function updatePosition(position) {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            const acc = position.coords.accuracy;
+
+            document.getElementById('s-loc').innerText = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+            document.getElementById('s-acc').innerText = Math.round(acc) + "m";
+            document.getElementById('s-status').innerText = "TRACKING";
+            document.getElementById('s-status').style.color = "#0f0";
+
+            // Update Marker User
+            if (userMarker) {
+                userMarker.setLatLng([lat, lon]);
+            } else {
+                // Ikon User
+                const userIcon = L.divIcon({
+                    className: 'user-div-icon',
+                    html: `<div class="user-pulse"></div><div style="position:absolute;top:0;left:0;width:20px;height:20px;background:#0096ff;border:2px solid #fff;border-radius:50%;"></div>`,
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                });
+                userMarker = L.marker([lat, lon], { icon: userIcon }).addTo(map);
+                userMarker.bindPopup("<b>POSISI ANDA</b><br>Lokasi Realtime").openPopup();
                 
-                // Generate Fake Password
-                const fakePass = generateFakePassword();
+                // Auto center pertama kali
+                map.setView([lat, lon], 15);
+            }
+        }
+
+        function handleError(error) {
+            log("Error GPS: " + error.message);
+            document.getElementById('s-status').innerText = "GPS DENIED";
+        }
+
+        function centerToUser() {
+            if(userMarker) {
+                map.setView(userMarker.getLatLng(), 16);
+            } else {
+                alert("Lokasi Anda belum terdeteksi. Izinkan akses lokasi di browser.");
+            }
+        }
+
+        // --- 3. GENERATE WIFI DI SELURUH BALI ---
+        function loadBaliNetworks() {
+            networkLayer.clearLayers();
+            log("Scanning Bali Island...");
+            
+            const providers = ["IndiHome", "MyRepublic", "FirstMedia", "Telkomsel", "XL_PRI", "Smartfren", "Bali_Wifi", "Villa_Guest", "Cafe_Net", "Homestay"];
+            let count = 0;
+
+            // Membuat titik acak di sekitar pusat Bali (Radius besar)
+            for(let i=0; i<150; i++) { // 150 Titik
+                const lat = -8.4095 + (Math.random() - 0.5) * 0.8; // Menyebar lintang
+                const lon = 115.1889 + (Math.random() - 0.5) * 1.0; // Menyebar bujur
                 
-                resLabel.innerText = "WPA2 KEY FOUND:";
-                resPass.innerText = fakePass;
-                resPass.style.color = "#fff";
-                log(`Key captured for ${ssid}: ${fakePass}`, "ok");
+                const name = providers[Math.floor(Math.random()*providers.length)] + "_" + Math.floor(Math.random()*100);
+                const isOpen = Math.random() > 0.7;
+                
+                const data = {
+                    ssid: name,
+                    lat: lat,
+                    lon: lon,
+                    mac: generateMac(),
+                    signal: Math.floor(Math.random()*70) + 30,
+                    channel: Math.floor(Math.random()*14)+1,
+                    isSecure: !isOpen,
+                    ip: `192.168.${Math.floor(Math.random()*254)}.${Math.floor(Math.random()*254)}`,
+                    pass: !isOpen ? generatePass() : "OPEN"
+                };
+
+                // Buat Marker dengan Label Nama
+                const icon = L.divIcon({
+                    className: 'wifi-icon',
+                    html: `<div style="display:flex; flex-direction:column; align-items:center;">
+                              <div style="width:8px; height:8px; border-radius:50%; background:${data.isSecure ? '#0f0' : '#ff0'}; border:1px solid #fff;"></div>
+                              <div class="wifi-label ${isOpen ? 'open' : ''}">${data.ssid}</div>
+                           </div>`,
+                    iconSize: [100, 40],
+                    iconAnchor: [50, 10]
+                });
+
+                const marker = L.marker([lat, lon], {icon: icon}).addTo(networkLayer);
+                
+                // Event Klik
+                marker.on('click', () => openDetail(data));
+                count++;
             }
             
-            resultBox.style.display = 'block';
+            document.getElementById('s-nodes').innerText = count;
+            log("Found " + count + " nodes.");
         }
 
-        function generateFakePassword() {
-            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
-            let pass = "";
-            for(let i=0; i<12; i++) {
-                pass += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return pass;
+        // --- 4. MODAL & CONNECT LOGIC ---
+        function openDetail(data) {
+            currentTarget = data;
+            document.getElementById('m-name').innerText = data.ssid;
+            document.getElementById('m-mac').innerText = data.mac;
+            document.getElementById('m-sig').innerText = data.signal + "%";
+            document.getElementById('m-chan').innerText = "CH " + data.channel;
+            document.getElementById('m-enc').innerText = data.isSecure ? "WPA2" : "OPEN";
+            document.getElementById('m-ip').innerText = data.ip;
+            document.getElementById('m-pass').innerText = data.pass;
+            
+            document.getElementById('btn-conn').disabled = false;
+            document.getElementById('btn-conn').innerText = "🔌 SAMBUNGKAN";
+            document.getElementById('btn-conn').style.background = "#0f0";
+            document.getElementById('btn-conn').style.color = "#000";
+            document.getElementById('conn-log').style.display = 'none';
+            
+            document.getElementById('modal-overlay').style.display = 'flex';
         }
 
-        function copyPassword() {
-            const text = document.getElementById('res-password').innerText;
-            navigator.clipboard.writeText(text).then(() => {
-                alert("Key disalin ke clipboard!");
+        function connectSim() {
+            const btn = document.getElementById('btn-conn');
+            const log = document.getElementById('conn-log');
+            btn.disabled = true;
+            btn.innerText = "Connecting...";
+            log.style.display = 'block';
+            log.innerHTML = "";
+
+            const steps = ["Handshaking...", "Authenticating...", "Obtaining IP...", "Connected!"];
+            let time = 0;
+            
+            steps.forEach((step, i) => {
+                setTimeout(() => {
+                    log.innerHTML += `<div style="color:${i==3 ? '#0f0' : '#fff'}">> ${step}</div>`;
+                    if(i==3) {
+                        btn.innerText = "✅ CONNECTED";
+                        btn.style.background = "#fff";
+                    }
+                }, time);
+                time += 800;
             });
         }
 
-        function closeModal() {
-            document.getElementById('modal-overlay').style.display = 'none';
+        // Helpers
+        function generateMac() {
+            return 'XX:XX:XX:XX:XX:XX'.replace(/X/g, () => "0123456789ABCDEF".charAt(Math.floor(Math.random() * 16)));
+        }
+        function generatePass() {
+            const c = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+            let p = "";
+            for(let i=0; i<10; i++) p += c.charAt(Math.floor(Math.random() * c.length));
+            return p;
+        }
+        function log(msg) {
+            const con = document.getElementById('console-log');
+            const time = new Date().toLocaleTimeString();
+            con.innerHTML += `<div>[${time}] ${msg}</div>`;
+            con.scrollTop = con.scrollHeight;
         }
 
-        // Start
-        window.onload = init;
+        // Init
+        trackUser(); // Jalankan tracking lokasi
     </script>
 </body>
 </html>
